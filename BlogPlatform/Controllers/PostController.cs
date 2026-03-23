@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 public class PostController : ControllerBase
 {
     private readonly IPostRepository _posts;
+    private readonly PostCacheService _cache;
 
-    public PostController(IPostRepository posts)
+    public PostController(IPostRepository posts, PostCacheService cache)
     {
         _posts = posts;
+        _cache = cache;
     }
 
     // POST api/blogs/{blogId}/posts
@@ -49,12 +51,21 @@ public class PostController : ControllerBase
     }
 
     // POST api/posts/{id}/comments
+    // POST api/posts/{id}/comments
     [HttpPost("posts/{id}/comments")]
     public async Task<IActionResult> AddComment(string id, Comment comment)
     {
+        // Check if user has exceeded the rate limit
+        if (!await _cache.IsWithinRateLimitAsync(comment.AuthorName))
+            return StatusCode(429, "Too many comments. Please wait before commenting again.");
+
+        // Increment the comment counter for this user
+        await _cache.IncrementCommentCountAsync(comment.AuthorName);
+
         // Pushes comment into the embedded array inside the post
         // No need to fetch the whole post first
         await _posts.AddComment(id, comment);
         return NoContent();
     }
+    
 }
