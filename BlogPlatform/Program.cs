@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Register Redis connection as singleton
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]!));
+builder.Services.AddSingleton<PostCacheService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
