@@ -5,7 +5,7 @@ public class Blog
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = null!;
+    public string? Id { get; set; }  // nullable — MongoDB generates this
 
     public string Name { get; set; } = null!;
 

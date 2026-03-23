@@ -5,10 +5,10 @@ public class Post
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = null!;
+    public string? Id { get; set; }  // nullable — MongoDB generates this
 
     [BsonRepresentation(BsonType.ObjectId)]
-    public string BlogId { get; set; } = null!;
+    public string? BlogId { get; set; }  // set from route, not request body
 
     public string Title { get; set; } = null!;
     public string Body { get; set; } = null!;
