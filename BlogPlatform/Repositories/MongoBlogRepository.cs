@@ -9,7 +9,7 @@ public class MongoBlogRepository : IBlogRepository
     private readonly IMongoCollection<Blog> _blogs;
     private readonly IPostRepository _posts;
 
-    public MongoBlogRepository(IMongoDatabase db, IPostRepository posts)
+    public MongoBlogRepository(IMongoDatabase db, IPostRepository posts, PostSearchService search)
     {
         _blogs = db.GetCollection<Blog>("blogs");
         _posts = posts;

@@ -4,14 +4,16 @@ public class MongoPostRepository : IPostRepository
 {
     private readonly IMongoCollection<Post> _posts;
     private readonly PostCacheService _cache;
+    private readonly PostSearchService _search;
     // All MongoDB specific code lives here only.
     // The rest of the application depends on IPostRepository interface, not this implementation
     // This means we can swap MongoDB for
     // another database by only changing this file and Program.cs.
-    public MongoPostRepository(IMongoDatabase db, PostCacheService cache)
+    public MongoPostRepository(IMongoDatabase db, PostCacheService cache, PostSearchService search)
     {
          _posts = db.GetCollection<Post>("posts");
          _cache = cache;
+         _search = search;
     }
     // Check cache first — only hit MongoDB if cache miss
     public async Task<Post?> GetById(string id)
@@ -27,9 +29,11 @@ public class MongoPostRepository : IPostRepository
     public async Task<List<Post>> GetByBlog(string blogId)
         => await _posts.Find(p => p.BlogId == blogId).ToListAsync();
 
+    // Write-through: save to MongoDB AND index in Redis search at the same time
     public async Task<Post> Create(Post post)
     {
         await _posts.InsertOneAsync(post);
+        await _search.IndexPostAsync(post);
         return post;
     }
 

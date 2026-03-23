@@ -6,11 +6,13 @@ public class PostController : ControllerBase
 {
     private readonly IPostRepository _posts;
     private readonly PostCacheService _cache;
+    private readonly PostSearchService _search;
 
-    public PostController(IPostRepository posts, PostCacheService cache)
+    public PostController(IPostRepository posts, PostCacheService cache, PostSearchService search)
     {
         _posts = posts;
         _cache = cache;
+        _search = search;
     }
 
     // POST api/blogs/{blogId}/posts
@@ -66,6 +68,17 @@ public class PostController : ControllerBase
         // No need to fetch the whole post first
         await _posts.AddComment(id, comment);
         return NoContent();
+    }
+
+    // GET api/posts/search?q=keyword
+    [HttpGet("posts/search")]
+    public async Task<IActionResult> Search([FromQuery] string q)
+    {
+        if (string.IsNullOrEmpty(q))
+            return BadRequest("Search query cannot be empty");
+
+        var results = await _search.SearchAsync(q);
+        return Ok(results);
     }
     
 }

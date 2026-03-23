@@ -24,6 +24,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IConnectionMultiplexer>(
 ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]!));
 builder.Services.AddSingleton<PostCacheService>();
+builder.Services.AddSingleton<PostSearchService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
