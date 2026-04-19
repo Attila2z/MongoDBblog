@@ -15,17 +15,16 @@ public class PostController : ControllerBase
         _search = search;
     }
 
-    // POST api/blogs/{blogId}/posts
+    // POST /api/blogs/{blogId}/posts
     [HttpPost("blogs/{blogId}/posts")]
     public async Task<IActionResult> Create(string blogId, Post post)
     {
-        // Assign the blogId from the route to the post
-        post.BlogId = blogId;
+        post.BlogId = blogId;  // override with route value to prevent tampering
         var created = await _posts.Create(post);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
-    // GET api/posts/{id}
+    // GET /api/posts/{id}
     [HttpGet("posts/{id}")]
     public async Task<IActionResult> GetById(string id)
     {
@@ -34,17 +33,16 @@ public class PostController : ControllerBase
         return Ok(post);
     }
 
-    // PUT api/posts/{id}
+    // PUT /api/posts/{id}
     [HttpPut("posts/{id}")]
     public async Task<IActionResult> Update(string id, Post post)
     {
-        // Make sure the id from the route is used
-        post.Id = id;
+        post.Id = id;  // enforce route id — don't trust what the client sends in the body
         await _posts.Update(post);
-        return NoContent();
+        return NoContent();  // 204 — success, no body
     }
 
-    // DELETE api/posts/{id}
+    // DELETE /api/posts/{id}
     [HttpDelete("posts/{id}")]
     public async Task<IActionResult> Delete(string id)
     {
@@ -52,25 +50,19 @@ public class PostController : ControllerBase
         return NoContent();
     }
 
-    // POST api/posts/{id}/comments
-    // POST api/posts/{id}/comments
+    // POST /api/posts/{id}/comments
     [HttpPost("posts/{id}/comments")]
     public async Task<IActionResult> AddComment(string id, Comment comment)
     {
-        // Check if user has exceeded the rate limit
         if (!await _cache.IsWithinRateLimitAsync(comment.AuthorName))
             return StatusCode(429, "Too many comments. Please wait before commenting again.");
 
-        // Increment the comment counter for this user
-        await _cache.IncrementCommentCountAsync(comment.AuthorName);
-
-        // Pushes comment into the embedded array inside the post
-        // No need to fetch the whole post first
-        await _posts.AddComment(id, comment);
+        await _cache.IncrementCommentCountAsync(comment.AuthorName);  // track the count
+        await _posts.AddComment(id, comment);                          // write the comment
         return NoContent();
     }
 
-    // GET api/posts/search?q=keyword
+    // GET /api/posts/search?q=keyword
     [HttpGet("posts/search")]
     public async Task<IActionResult> Search([FromQuery] string q)
     {
@@ -80,5 +72,4 @@ public class PostController : ControllerBase
         var results = await _search.SearchAsync(q);
         return Ok(results);
     }
-    
 }

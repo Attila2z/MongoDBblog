@@ -3,28 +3,34 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register MongoDB client as singleton — one connection shared across the app
+// MONGODB SETUP 
+
 builder.Services.AddSingleton<IMongoClient>(
     new MongoClient(builder.Configuration["MongoDB:ConnectionString"]));
 
-// Register MongoDB database as scoped
+// IMongoDatabase is SCOPED — a new instance per HTTP request.
+// This is lightweight (just a reference to the client + database name) so the
+// overhead is minimal, and scoping it ensures each request gets a clean context.
 builder.Services.AddScoped<IMongoDatabase>(sp =>
     sp.GetRequiredService<IMongoClient>()
       .GetDatabase(builder.Configuration["MongoDB:Database"]));
 
-// Register repositories — swap these lines to change databases
-builder.Services.AddScoped<IPostRepository, MongoPostRepository>();
+// REPOSITORIES 
 builder.Services.AddScoped<IBlogRepository, MongoBlogRepository>();
+builder.Services.AddScoped<IPostRepository, MongoPostRepository>();
+
+//  REDIS SETUP
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]!));
+
+// Redis services ingletons
+builder.Services.AddSingleton<PostCacheService>();
+builder.Services.AddSingleton<PostSearchService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen();  // Swagger UI available at /swagger in Development
 
-// Register Redis connection as singleton
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]!));
-builder.Services.AddSingleton<PostCacheService>();
-builder.Services.AddSingleton<PostSearchService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
