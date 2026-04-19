@@ -7,42 +7,62 @@ public class PostController : ControllerBase
     private readonly IPostRepository _posts;
     private readonly PostCacheService _cache;
     private readonly PostSearchService _search;
+    private readonly CreatePostCommandHandler _createHandler;
+    private readonly UpdatePostCommandHandler _updateHandler;
+    private readonly GetPostQueryHandler _getHandler;
 
-    public PostController(IPostRepository posts, PostCacheService cache, PostSearchService search)
+    public PostController(
+        IPostRepository posts,
+        PostCacheService cache,
+        PostSearchService search,
+        CreatePostCommandHandler createHandler,
+        UpdatePostCommandHandler updateHandler,
+        GetPostQueryHandler getHandler)
     {
         _posts = posts;
         _cache = cache;
         _search = search;
+        _createHandler = createHandler;
+        _updateHandler = updateHandler;
+        _getHandler = getHandler;
     }
 
-    // POST /api/blogs/{blogId}/posts
+    // COMMANDS (write via handlers)
     [HttpPost("blogs/{blogId}/posts")]
     public async Task<IActionResult> Create(string blogId, Post post)
     {
-        post.BlogId = blogId;  // override with route value to prevent tampering
-        var created = await _posts.Create(post);
+        var command = new CreatePostCommand
+        {
+            BlogId = blogId,
+            Title = post.Title,
+            Body = post.Body
+        };
+        var created = await _createHandler.HandleAsync(command);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
-    // GET /api/posts/{id}
+    [HttpPut("posts/{id}")]
+    public async Task<IActionResult> Update(string id, Post post)
+    {
+        await _updateHandler.HandleAsync(new UpdatePostCommand
+        {
+            Id = id,
+            Title = post.Title,
+            Body = post.Body
+        });
+        return NoContent();
+    }
+
+    // QUERY (read via handler)
     [HttpGet("posts/{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        var post = await _posts.GetById(id);
+        var post = await _getHandler.HandleAsync(new GetPostQuery { PostId = id });
         if (post is null) return NotFound();
         return Ok(post);
     }
 
-    // PUT /api/posts/{id}
-    [HttpPut("posts/{id}")]
-    public async Task<IActionResult> Update(string id, Post post)
-    {
-        post.Id = id;  // enforce route id — don't trust what the client sends in the body
-        await _posts.Update(post);
-        return NoContent();  // 204 — success, no body
-    }
-
-    // DELETE /api/posts/{id}
+    // UNCHANGED from week 12
     [HttpDelete("posts/{id}")]
     public async Task<IActionResult> Delete(string id)
     {
@@ -50,19 +70,17 @@ public class PostController : ControllerBase
         return NoContent();
     }
 
-    // POST /api/posts/{id}/comments
     [HttpPost("posts/{id}/comments")]
     public async Task<IActionResult> AddComment(string id, Comment comment)
     {
         if (!await _cache.IsWithinRateLimitAsync(comment.AuthorName))
             return StatusCode(429, "Too many comments. Please wait before commenting again.");
 
-        await _cache.IncrementCommentCountAsync(comment.AuthorName);  // track the count
-        await _posts.AddComment(id, comment);                          // write the comment
+        await _cache.IncrementCommentCountAsync(comment.AuthorName);
+        await _posts.AddComment(id, comment);
         return NoContent();
     }
 
-    // GET /api/posts/search?q=keyword
     [HttpGet("posts/search")]
     public async Task<IActionResult> Search([FromQuery] string q)
     {

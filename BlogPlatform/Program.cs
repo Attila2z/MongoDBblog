@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using StackExchange.Redis;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,18 @@ builder.Services.AddSingleton<IMongoClient>(
 builder.Services.AddScoped<IMongoDatabase>(sp =>
     sp.GetRequiredService<IMongoClient>()
       .GetDatabase(builder.Configuration["MongoDB:Database"]));
+
+// POSTGRESQL SETUP
+builder.Services.AddDbContext<BlogDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+
+// SQL REPOSITORY
+builder.Services.AddScoped<SqlPostRepository>();
+
+// COMMAND & QUERY HANDLERS
+builder.Services.AddScoped<CreatePostCommandHandler>();
+builder.Services.AddScoped<UpdatePostCommandHandler>();
+builder.Services.AddScoped<GetPostQueryHandler>();
 
 // REPOSITORIES 
 builder.Services.AddScoped<IBlogRepository, MongoBlogRepository>();

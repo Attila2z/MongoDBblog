@@ -5,7 +5,7 @@ public class MongoBlogRepository : IBlogRepository
 
     private readonly IPostRepository _posts;
 
-    public MongoBlogRepository(IMongoDatabase db, IPostRepository posts, PostSearchService search)
+    public MongoBlogRepository(IMongoDatabase db, IPostRepository posts)
     {
         _blogs = db.GetCollection<Blog>("blogs");  // "blogs" = collection name in MongoDB
         _posts = posts;
@@ -34,6 +34,8 @@ public class MongoBlogRepository : IBlogRepository
         await _blogs.InsertOneAsync(blog);
         return blog;
     }
+
+
     public async Task Delete(string id)
     {
         await _posts.DeleteByBlog(id);          // delete all posts first
