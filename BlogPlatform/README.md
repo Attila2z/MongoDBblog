@@ -176,3 +176,60 @@ Swagger UI is available at `https://localhost:{port}/swagger` in Development mod
   }
 }
 ```
+
+# Week 12 — Caching, Rate Limiting & Search
+
+Three Redis features added on top of the Week 11 blogging platform.
+
+---
+
+## Task 1 — Post caching
+
+**File:** `Services/PostCacheService.cs`, wired in `Repositories/MongoPostRepository.cs`
+
+Cache-aside pattern: on `GET /api/posts/{id}`, Redis is checked first. Only on a miss does the repository hit MongoDB, then stores the result in Redis for next time. On `PUT /api/posts/{id}`, the cache entry is deleted so stale data is never served.
+
+- TTL: 5 minutes
+- Key: the post's `Id`
+
+## Task 2 — Comment rate limiting
+
+**File:** `Services/PostCacheService.cs`, enforced in `Controllers/PostController.cs`
+
+Before a comment is written, the controller checks how many comments that user has submitted in the last hour. If over 10, it returns `429 Too Many Requests`. The counter is a Redis key that expires after 1 hour.
+
+- Key: `comment-count:{authorName}`
+- Limit: 10 comments per hour
+
+> **Known limitation:** the rate limit key uses `AuthorName` (a plain string from the request body). In production this should use an authenticated user id from a JWT token.
+
+## Task 3 — Full-text search
+
+**File:** `Services/PostSearchService.cs`, wired in `Repositories/MongoPostRepository.cs`
+
+Redis is kept in sync with MongoDB using write-through: every time a post is created, it is also indexed in Redis under the key `post:{id}`. Search queries both `Title` and `Body` fields using the Redis `FT` module.
+
+- Index: `idx:blogposts`
+- Endpoint: `GET /api/posts/search?q=keyword`
+- Returns up to 10 results
+
+
+## Week 13 — CQRS with PostgreSQL (WIP)
+
+Separating read and write operations using the CQRS pattern.
+
+**Write model** → PostgreSQL (commands)
+**Read model** → MongoDB (queries)
+
+### New structure
+- `Application/Commands/` — CreatePostCommand, UpdatePostCommand + handlers
+- `Application/Queries/` — GetPostQuery + handler  
+- `Infrastructure/Sql/` — BlogDbContext, PostEntity, SqlPostRepository
+
+### How it works
+- `POST /api/blogs/{blogId}/posts` → writes to both PostgreSQL and MongoDB
+- `PUT /api/posts/{id}` → updates both PostgreSQL and MongoDB
+- `GET /api/posts/{id}` → reads from MongoDB only
+
+### Known issue
+PostgreSQL INSERT executes successfully but data is not persisting — under investigation.
